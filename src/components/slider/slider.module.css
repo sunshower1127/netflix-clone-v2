@@ -1,0 +1,29 @@
+.responsive {
+  /* xs */
+  --item-capacity: 2;
+  --button-width: 20px;
+  --item-width: calc(
+    (100% - 2 * var(--button-width) - (var(--item-capacity) + 1) * 4px) /
+      var(--item-capacity)
+  );
+
+  @media (min-width: 640px) {
+    --item-capacity: 3;
+    --button-width: 24px;
+  }
+
+  @media (min-width: 768px) {
+    --item-capacity: 4;
+    --button-width: 34px; /* 34 px */
+  }
+
+  @media (min-width: 1024px /* 1024px */) {
+    --item-capacity: 5;
+    --button-width: 44px; /* 44 px */
+  }
+
+  @media (min-width: 1280px/* 1280px */) {
+    --item-capacity: 6;
+    --button-width: 60px; /* 60 px */
+  }
+}

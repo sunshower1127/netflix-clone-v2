@@ -3,7 +3,7 @@
 @import "@/lib/sw-toolkit/styles/base.css";
 
 @layer base {
-  * {
+  body {
     @apply bg-zinc-950 text-white;
   }
 }
