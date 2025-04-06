@@ -1,54 +1,22 @@
-# React + TypeScript + Vite
+# 넷플릭스 클론 v2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+무한 스크롤을 구현했으나...
 
-Currently, two official plugins are available:
+HTMLElement.scrollIntoView()의 한계점
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. 속도가 브라우저마다 제각각임
+2. 그래서 얼마나 걸리는지 계산이 안됨 (scrollend 이벤트는 이상하게 작동)
 
-## Expanding the ESLint configuration
+안쓰는게 나을듯 실제 프로덕션에서는 못씀 이건
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+직접 transform으로 애니메이션 줘서 스크롤하게 하는게 베스트인거 같고
+지금 가장 문제점은
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+**다시 원래자리로 돌아갈때 깜빡거림이 있다는거임.**
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+1. 새로 아이템들을 채우고
+2. 중간 위치로 이동시키고
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1과 2 사이에 공백이 생겨서 깜빡거림이 생김.
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+해결법은 이제 js가 아니라 css단에서 이제

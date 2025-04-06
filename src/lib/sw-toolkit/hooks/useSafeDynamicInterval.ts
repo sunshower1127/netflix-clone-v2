@@ -1,5 +1,8 @@
 import { isNil } from "@/lib/sw-toolkit/utils/utils";
-import useSafeEffect, { SafeEffectContext, SafeEffectOptions } from "./useSafeEffect";
+import useSafeEffect, {
+  SafeEffectContext,
+  SafeEffectOptions,
+} from "./useSafeEffect";
 
 /**
  * 동적인 간격으로 콜백 함수를 실행하는 커스텀 훅
@@ -8,12 +11,15 @@ import useSafeEffect, { SafeEffectContext, SafeEffectOptions } from "./useSafeEf
  * @param options
  * - enabled 활성화 여부 (기본값: true)
  */
-export default function useSafeDynamicInterval<ValidType extends object | undefined = undefined>(
-  callback: (context: SafeEffectContext<ValidType>) => Promise<number | null | undefined> | number | null | undefined,
+export default function useSafeDynamicInterval<
+  ValidType extends object | undefined = undefined,
+>(
+  callback: (
+    context: SafeEffectContext<ValidType>,
+  ) => Promise<number | null | undefined> | number | null | undefined,
   dependency: React.DependencyList,
   options?: SafeEffectOptions<ValidType>,
 ) {
-  console.log(options?.valid);
   useSafeEffect(
     (effectCtx) => {
       let nextTimeoutId: NodeJS.Timeout | null = null;

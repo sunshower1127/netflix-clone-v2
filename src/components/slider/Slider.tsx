@@ -4,8 +4,10 @@ import { AnimatePresence, motion, MotionStyle } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
+import useSafeEffect from "@/lib/sw-toolkit/hooks/useSafeEffect.ts";
+import { isNil } from "@/lib/sw-toolkit/utils/utils.ts";
 import { Icon } from "@iconify/react/dist/iconify.js";
-import { range } from "es-toolkit";
+import { delay, range } from "es-toolkit";
 import { isEmpty } from "es-toolkit/compat";
 import { createPortal } from "react-dom";
 import classes from "./slider.module.css";
@@ -18,6 +20,40 @@ export default function Slider({
   const itemLength = sources.length;
   const [index, setIndex] = useState(0);
   const [itemCapacity, setItemCapacity] = useState(2);
+  const ulRef = useRef<HTMLUListElement>(null);
+  const [firstTouch, setFirstTouch] = useState(false);
+  const scrollButtonVisible = itemLength > itemCapacity;
+  const [isScrolling, setIsScrolling] = useState(false);
+  console.log("index", index);
+
+  useEffect(() => {
+    if (ulRef.current) {
+      ulRef.current!.children[itemCapacity + 1].scrollIntoView({
+        inline: "start",
+        behavior: "instant",
+      });
+    }
+  }, [index, itemCapacity]);
+
+  useSafeEffect(
+    ({ defer }) => {
+      const handleChangeSize = () => {
+        if (ulRef.current) {
+          ulRef.current.children[itemCapacity + 1].scrollIntoView({
+            inline: "start",
+          });
+        }
+      };
+
+      window.addEventListener("resize", handleChangeSize);
+      // ulRef.current?.addEventListener("scrollend", handleChangeSize);
+      defer(() => {
+        window.removeEventListener("resize", handleChangeSize);
+        // ulRef.current?.removeEventListener("scrollend", handleChangeSize);
+      });
+    },
+    [itemCapacity],
+  );
 
   const handleBreakpoint = useRefCallback(({ defer, element }) => {
     const breakPoints = [640, 768, 1024, 1280];
@@ -38,26 +74,48 @@ export default function Slider({
     handleMediaChange();
   }, []); // PASSED
 
-  // const handlePageScroll = (opt: "left" | "right") => {
-  //   if (!ulRef.current) return;
-  //   const scrollContainer = ulRef.current;
+  const handlePageScroll = async (opt: "left" | "right") => {
+    if (isNil(ulRef.current)) return;
 
-  //   let newIndex: number;
+    const items = ulRef.current.children;
 
-  //   if (opt === "left") {
-  //     newIndex = Math.max(0, index - itemCapacity);
-  //   } else {
-  //     newIndex = Math.min(itemLength - itemCapacity, index + itemCapacity);
-  //   }
+    const scroll = (index: number, behavior: "smooth" | "instant") => {
+      items[index].scrollIntoView({
+        behavior: behavior,
+        inline: "start",
+      });
+    };
 
-  //   scrollContainer.children[newIndex + 1].scrollIntoView({
-  //     behavior: "smooth",
-  //     inline: "start",
-  //   });
+    let newIndex: number;
 
-  //   // Ref로 바꿔도 작동 하는데, State가 더 시맨틱해서 씀.
-  //   setIndex(newIndex);
-  // };
+    if (opt === "left") {
+      if (index === 0) {
+        newIndex = itemLength - itemCapacity;
+        scroll(1, "smooth");
+      } else {
+        newIndex = Math.max(0, index - itemCapacity);
+        scroll(itemCapacity - (index - newIndex) + 1, "smooth");
+      }
+    } else {
+      if (index === itemLength - itemCapacity) {
+        newIndex = 0;
+        scroll(itemCapacity * 2 + 1, "smooth");
+      } else {
+        newIndex = Math.min(itemLength - itemCapacity, index + itemCapacity);
+        scroll(itemCapacity + (newIndex - index) + 1, "smooth");
+      }
+    }
+
+    if (newIndex === index) return;
+
+    setIsScrolling(true);
+
+    await delay(1000);
+    setFirstTouch(true);
+    setIndex(newIndex);
+    await delay(100);
+    setIsScrolling(false);
+  };
 
   return (
     <article
@@ -77,9 +135,12 @@ export default function Slider({
       </header>
       <nav className="group/nav relative py-1">
         <button
-          className="group/btn absolute top-0 left-0 h-full w-(--button-width) rounded-r-xs bg-black/50 hover:bg-black/70"
-          // style={{ display: index === 0 ? "none" : "inline-block" }}
-          // onClick={() => handlePageScroll("left")}
+          className={twMerge(
+            "group/btn absolute top-0 left-0 h-full w-(--button-width) rounded-r-xs bg-black/50 hover:bg-black/70",
+            !scrollButtonVisible || !firstTouch ? "hidden" : "",
+          )}
+          disabled={isScrolling}
+          onClick={() => handlePageScroll("left")}
         >
           <Icon
             icon="material-symbols-light:chevron-left"
@@ -87,18 +148,38 @@ export default function Slider({
           />
         </button>
 
-        {/* <div className="hover-zone absolute left-(--button-width) inline-flex h-full w-[calc(100dvw-2*var(--button-width))]" /> */}
-
-        <ul className="flex flex-row gap-1">
+        <ul
+          className="flex scroll-pl-[calc(var(--button-width)+4px)] flex-row gap-1 overflow-x-hidden"
+          ref={ulRef}
+        >
           <div className="w-(--button-width)" />
+          {range(itemCapacity).map((i) => {
+            const indexBefore =
+              (index + i - itemCapacity + itemLength) % itemLength;
+            return (
+              <Item
+                className={!firstTouch ? "hidden" : ""}
+                key={indexBefore}
+                source={sources[indexBefore]}
+              />
+            );
+          })}
           {range(itemCapacity).map((i) => (
             <Item key={i} source={sources[index + i]} />
           ))}
+          {range(itemCapacity).map((i) => {
+            const indexAfter = (index + i + itemCapacity) % itemLength;
+            return <Item key={indexAfter} source={sources[indexAfter]} />;
+          })}
           <div className="w-(--button-width)" />
         </ul>
         <button
-          className="group/btn absolute top-0 right-0 h-full w-(--button-width) rounded-l-xs bg-black/50 hover:bg-black/70"
-          // onClick={() => handlePageScroll("right")}
+          className={twMerge(
+            "group/btn absolute top-0 right-0 h-full w-(--button-width) rounded-l-xs bg-black/50 hover:bg-black/70",
+            !scrollButtonVisible ? "hidden" : "",
+          )}
+          disabled={isScrolling}
+          onClick={() => handlePageScroll("right")}
         >
           <Icon
             icon="material-symbols-light:chevron-right"
@@ -110,11 +191,10 @@ export default function Slider({
   );
 }
 
-function Item({ source }: { source: string }) {
+function Item({ source, className }: { source: string; className?: string }) {
   const [isHover, setHover] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const rectRef = useRef<HTMLImageElement>(null);
-  console.log("source", source);
 
   const handleMouseEnter = useCallback(() => {
     timeoutRef.current = setTimeout(() => {
@@ -142,11 +222,10 @@ function Item({ source }: { source: string }) {
   );
 
   return (
-    <li className="w-(--item-width)">
+    <li className={twMerge("w-(--item-width)", className)}>
       <div className="w-full bg-red-400" />
       <img
         ref={rectRef}
-        loading="lazy"
         className={twMerge("aspect-video w-full cursor-pointer rounded-xs")}
         src={source}
         onMouseEnter={handleMouseEnter}
@@ -219,20 +298,23 @@ function Card({
       <img className="aspect-video w-full rounded-xs" src={url} />
       <div className="flex w-full flex-col items-center gap-2 p-3 text-[0.7rem] font-light">
         <div className="flex w-full flex-row justify-between">
-          <div className="flex flex-row gap-1">
+          <div className="flex flex-row items-center gap-1">
             <Icon
               icon="material-symbols-light:play-circle-rounded"
-              className="size-3"
+              className="size-8"
             />
             <Icon
               icon="material-symbols-light:check-circle-outline"
-              className="size-2"
+              className="size-8"
             />
-            <Icon icon="pepicons-pencil:thumbs-up-circle" className="size-2" />
+            <Icon
+              icon="pepicons-pencil:thumbs-up-circle"
+              className="mx-1 size-[1.6rem]"
+            />
           </div>
           <Icon
             icon="material-symbols-light:expand-circle-down-outline"
-            className="size-2"
+            className="size-8"
           />
         </div>
         <p className="w-full">에피소드 25개</p>
